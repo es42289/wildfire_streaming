@@ -42,13 +42,28 @@ You already have an AWS CLI profile for work. We'll create a separate named prof
 
 **3a.** Log into your personal AWS account in the browser (the one you want to use for this project).
 
-**3b.** Create an IAM user for CLI access (if you haven't already):
-1. Go to **IAM Console** → Users → Create User
-2. User name: `wildfire-dev` (or whatever you prefer)
-3. Attach policy: `AdministratorAccess` (fine for a personal dev account; we can scope it down later)
-4. Go to the user → **Security credentials** tab → **Create access key**
-5. Choose "Command Line Interface (CLI)"
-6. Save the **Access Key ID** and **Secret Access Key** — you'll need them in the next step
+**3b.** Create an IAM user for CLI access:
+
+1. In the AWS Console, type **IAM** in the top search bar → click **IAM**
+2. In the left sidebar, click **Users**
+3. Click the **Create user** button (top right)
+4. **User name:** `wildfire-dev` → click **Next**
+5. On the "Set permissions" page:
+   - Select **Attach policies directly**
+   - In the search box, type `AdministratorAccess`
+   - Check the box next to **AdministratorAccess** (the one by AWS, not any custom ones)
+   - Click **Next**
+6. Review page — click **Create user**
+7. You'll land back on the Users list. Click on **wildfire-dev** (the user you just created)
+8. Click the **Security credentials** tab
+9. Scroll down to **Access keys** → click **Create access key**
+10. Select **Command Line Interface (CLI)**
+11. Check the confirmation checkbox at the bottom, click **Next**
+12. Description tag (optional): `wildfire project` → click **Create access key**
+13. **IMPORTANT:** You are now on the "Retrieve access keys" page. Copy both values:
+    - **Access Key ID** (starts with `AKIA...`)
+    - **Secret Access Key** (only shown once — copy it now or download the CSV)
+14. Click **Done**
 
 **3c.** Configure the profile:
 ```powershell
