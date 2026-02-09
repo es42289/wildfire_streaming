@@ -1,0 +1,10 @@
+secrets/
+.env
+*.pem
+*.key
+.venv/
+__pycache__/
+node_modules/
+.next/
+out/
+.aws-sam/

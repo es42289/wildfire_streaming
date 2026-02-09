@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(pnpm --version:*)",
+      "Bash(aws:*)",
+      "Bash(sam:*)",
+      "Bash(docker:*)",
+      "Bash(git --version:*)",
+      "Bash(pip:*)",
+      "Bash(where:*)",
+      "Bash(conda:*)",
+      "Bash(git reset:*)"
+    ]
+  }
+}
