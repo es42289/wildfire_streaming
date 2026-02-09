@@ -22,20 +22,23 @@ Status tracking: Update this doc as phases complete.
 - [ ] Pick a home region (recommendation: **us-east-1** — required for CloudFront ACM certs, cheapest Lambda pricing)
 
 ### 0.3 Domain & SSL
-- [ ] Decide DNS approach:
-  - **Option A (recommended):** Transfer/point NS records to **Route 53** hosted zone → full control from AWS
-  - **Option B:** Keep external DNS, create CNAME to CloudFront distribution
-- [ ] Request ACM certificate for `eliiskeans.com` + `*.eliiskeans.com` (must be in **us-east-1** for CloudFront)
-- [ ] Validate certificate (DNS validation is easiest)
+- [ ] **Keep Cloudflare as DNS** (registrar: Namecheap, DNS: Cloudflare — no migration needed)
+- [ ] Request ACM certificate for `eliiskeans.com` + `*.eliiskeans.com` in **us-east-1**
+- [ ] Add ACM DNS validation CNAME record in Cloudflare
+- [ ] After CloudFront is created: add CNAME `www.eliiskeans.com` → CloudFront distribution domain in Cloudflare
+- [ ] **Important:** Set that CNAME to **DNS-only mode (gray cloud)** in Cloudflare — Cloudflare's proxy (orange cloud) conflicts with CloudFront and will cause SSL/routing issues
 
 ### 0.4 Infrastructure-as-Code Setup
-- [ ] Choose IaC tool: **AWS SAM** (recommended — first-class Lambda/APIGW support, simpler than CDK for this scope, easy local testing with `sam local`)
+- [ ] **IaC tool: AWS SAM** (decided)
+  - Why SAM over CDK: SAM is purpose-built for Lambda + API Gateway workloads. It uses declarative YAML (easier to read/review than CDK's imperative code), has `sam local invoke` for testing Lambdas without deploying, and maps 1:1 to CloudFormation (so you learn the real AWS primitives, not an abstraction). CDK is great for large teams / complex infra, but adds a layer of indirection that isn't needed here.
+- [ ] Install SAM CLI (`pip install aws-sam-cli` or Homebrew)
 - [ ] Scaffold `infra/template.yaml` (SAM template)
 - [ ] Create base S3 buckets via SAM:
-  - `wildfire-app-web` (frontend hosting)
+  - `wildfire-app-web` (frontend hosting, static website enabled)
   - `wildfire-data` (snapshots/replay)
 - [ ] Create CloudFront distribution pointing to `wildfire-app-web` bucket
-- [ ] Wire up domain alias + ACM cert on CloudFront
+- [ ] Wire up domain alias (`www.eliiskeans.com`) + ACM cert on CloudFront
+- [ ] Origin Access Control (OAC) so S3 bucket is private, only accessible via CloudFront
 
 ### 0.5 Repo Structure
 - [ ] Create directory scaffold per project outline:
@@ -48,7 +51,10 @@ Status tracking: Update this doc as phases complete.
   /references     — Chat history, notes
   ```
 - [ ] Add `.gitignore`, `README.md`
-- [ ] Set up CI stub (GitHub Actions) — just lint + test for now, deploy later
+- [ ] Set up **GitHub Actions** CI pipeline:
+  - `.github/workflows/ci.yml` — on push/PR: lint Python (ruff), lint JS (eslint), run tests
+  - `.github/workflows/deploy.yml` — on push to `main`: build frontend, `sam build && sam deploy`, sync to S3, invalidate CloudFront
+  - Start with CI only; add deploy workflow once infra is stable
 
 **Exit criteria:** `sam deploy` provisions empty S3 + CloudFront, domain loads a placeholder page over HTTPS.
 
@@ -217,7 +223,7 @@ Status tracking: Update this doc as phases complete.
 - [ ] Optional: H3 density heatmap layer
 
 ### 6.2 Visual Polish
-- [ ] Map styling (dark basemap, fire-colored points, animated pulses for new hotspots)
+- [ ] **Dark basemap** (e.g., MapTiler Dark, Carto Dark Matter, or custom dark style) with fire-colored points, animated pulses for new hotspots
 - [ ] Responsive layout (mobile-friendly)
 - [ ] Loading states, error states
 - [ ] Smooth transitions on data updates
@@ -242,17 +248,10 @@ Status tracking: Update this doc as phases complete.
 
 | # | Decision | Status | Notes |
 |---|----------|--------|-------|
-| 1 | IaC Tool | **Proposed: SAM** | Good Lambda/APIGW support, easy local testing. CDK is an option if SAM feels limiting. |
-| 2 | DNS Approach | **TBD** | Route 53 (recommended) vs external DNS. Depends on current registrar. |
-| 3 | Map Library | **Proposed: MapLibre GL JS** | Free, performant, vector tiles. Leaflet is simpler but less capable. |
-| 4 | Clustering Algo | **Proposed: Distance + Time window** | Simple MVP. Can swap in DBSCAN or H3-based later. |
-| 5 | Local Flink | **Deferred to post-MVP** | Focus on serverless first. Add Flink as a "bonus" streaming demo later. |
-
----
-
-## Open Questions
-
-1. **Where is `eliiskeans.com` currently registered?** (Determines DNS migration approach)
-2. **SAM vs CDK preference?** SAM is simpler for this scope, CDK gives more flexibility. Both work.
-3. **Any preference on map style?** (Dark/light basemap, specific tile provider)
-4. **GitHub Actions for CI/CD, or something else?**
+| 1 | IaC Tool | **Decided: SAM** | Declarative YAML, `sam local invoke`, maps to CloudFormation. Right fit for Lambda-heavy serverless. |
+| 2 | DNS | **Decided: Keep Cloudflare** | Registrar: Namecheap. DNS: Cloudflare. Add CNAMEs for ACM validation + CloudFront. Use gray-cloud (DNS-only) mode. |
+| 3 | Map Library | **Decided: MapLibre GL JS** | Free, performant, vector tiles. Dark basemap. |
+| 4 | Map Style | **Decided: Dark basemap** | Fire-colored data on dark background. Carto Dark Matter or similar. |
+| 5 | CI/CD | **Decided: GitHub Actions** | CI on PR (lint + test), deploy on merge to main. |
+| 6 | Clustering Algo | **Proposed: Distance + Time window** | Simple MVP. Can swap in DBSCAN or H3-based later. |
+| 7 | Local Flink | **Deferred to post-MVP** | Focus on serverless first. Add Flink as a "bonus" streaming demo later. |
