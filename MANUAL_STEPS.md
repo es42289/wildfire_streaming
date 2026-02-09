@@ -71,15 +71,22 @@ You should see your account ID and the `wildfire-dev` user ARN.
 Run from the project root (`C:\Users\EliiS\Documents\PD\streaming`):
 
 ```powershell
-conda create -n wildfire python=3.12 -y
-conda activate wildfire
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Then install base dev tooling:
+```powershell
+pip install --upgrade pip
+pip install ruff pytest boto3
 ```
 
 Verify:
 ```powershell
 python --version
+pip list
 ```
-Should show `Python 3.12.x`.
+Should show `Python 3.12.x` and the installed packages.
 
 ### Step 5: Verify Docker is running
 
@@ -98,5 +105,5 @@ If Docker Desktop isn't running, start it. SAM uses Docker for local Lambda test
 | 1 | pnpm installed | [ ] |
 | 2 | SAM CLI installed | [ ] |
 | 3 | AWS CLI `wildfire` profile configured | [ ] |
-| 4 | Conda `wildfire` env created (Python 3.12) | [ ] |
+| 4 | Python `.venv` created and activated | [ ] |
 | 5 | Docker running | [ ] |
