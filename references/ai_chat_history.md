@@ -16,3 +16,9 @@
 - **CI/CD:** GitHub Actions — ci.yml for lint+test on PR, deploy.yml for build+deploy on merge to main.
 - **Map style:** Dark basemap (Carto Dark Matter or similar).
 - Removed Open Questions section, updated Decision Log to reflect all decisions as finalized.
+
+---
+
+**User:** Let's kick off Phase 0.1. Also create a document to catalogue all manual steps as we go. Keep steps clean — only final working steps, no circuitous troubleshooting.
+
+**AI (🍀):** Checked local environment. Found: Python 3.12 (miniforge/conda), Node 24, npm, AWS CLI v2, Docker, Git all installed. Missing: pnpm and SAM CLI. AWS CLI has a work profile but no personal profile configured. Created `MANUAL_STEPS.md` with 5 steps for Phase 0.1: install pnpm, install SAM CLI, configure AWS personal profile (`wildfire`), create conda virtual env (`wildfire`), verify Docker.
