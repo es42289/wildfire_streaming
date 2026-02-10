@@ -1,15 +1,19 @@
 .stack {
   background: #16162a;
   border-top: 1px solid #2a2a4a;
-  padding: 48px 32px 56px;
+  padding: 24px 32px 28px;
+}
+
+.header {
   text-align: center;
+  margin-bottom: 20px;
 }
 
 .heading {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #e0e0e0;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   letter-spacing: -0.3px;
 }
 
@@ -18,29 +22,31 @@
 }
 
 .description {
-  max-width: 600px;
-  margin: 0 auto 40px;
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: #aaa;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #888;
 }
 
 .pipeline {
   display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.stageWrapper {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
-  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .stage {
   background: #1a1a2e;
   border: 1px solid #2a2a4a;
-  border-radius: 12px;
-  padding: 24px 20px;
-  width: 180px;
+  border-radius: 10px;
+  padding: 16px 12px;
+  flex: 1;
   text-align: center;
-  position: relative;
   transition: border-color 0.2s;
 }
 
@@ -54,40 +60,44 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #ff6b35;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .techList {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
   align-items: center;
 }
 
 .techItem {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  color: #ccc;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #aaa;
 }
 
 .techIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: #888;
   flex-shrink: 0;
+}
+
+.logoImg {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
 }
 
 .arrow {
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 6px;
   color: #ff6b35;
-  font-size: 1.2rem;
   flex-shrink: 0;
 }
 
@@ -97,31 +107,23 @@
     gap: 0;
   }
 
+  .stageWrapper {
+    justify-content: center;
+  }
+
   .arrow {
     transform: rotate(90deg);
     padding: 4px 0;
+    justify-content: center;
   }
 
   .stage {
-    width: 220px;
+    max-width: 320px;
   }
 }
 
 @media (max-width: 768px) {
   .stack {
-    padding: 32px 20px 40px;
-  }
-
-  .heading {
-    font-size: 1.25rem;
-  }
-
-  .description {
-    font-size: 0.85rem;
-  }
-
-  .stage {
-    width: 100%;
-    max-width: 260px;
+    padding: 20px 16px 24px;
   }
 }

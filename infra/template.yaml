@@ -7,6 +7,8 @@ Globals:
     Runtime: python3.12
     Timeout: 30
     MemorySize: 256
+    Tags:
+      Project: wildfire
     Environment:
       Variables:
         HOTSPOTS_TABLE: !Ref HotspotsTable
@@ -32,6 +34,9 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   DataBucket:
     Type: AWS::S3::Bucket
@@ -41,6 +46,9 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   # ---- CloudFront OAC ----
 
@@ -77,6 +85,9 @@ Resources:
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
+      Tags:
+        - Key: Project
+          Value: wildfire
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
@@ -132,6 +143,9 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expires_at
         Enabled: true
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   CursorsTable:
     Type: AWS::DynamoDB::Table
@@ -144,6 +158,9 @@ Resources:
       KeySchema:
         - AttributeName: source_name
           KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   IncidentsTable:
     Type: AWS::DynamoDB::Table
@@ -156,6 +173,9 @@ Resources:
       KeySchema:
         - AttributeName: incident_id
           KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   WsConnectionsTable:
     Type: AWS::DynamoDB::Table
@@ -171,6 +191,9 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expires_at
         Enabled: true
+      Tags:
+        - Key: Project
+          Value: wildfire
 
   # ---- Lambda Functions ----
 
