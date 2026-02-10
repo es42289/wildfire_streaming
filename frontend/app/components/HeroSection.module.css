@@ -1,7 +1,7 @@
 .hero {
   background: #16162a;
   border-bottom: 1px solid #2a2a4a;
-  padding: 16px 32px;
+  padding: 14px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,20 +34,37 @@
   color: #888;
 }
 
-.sources {
+.right {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
   flex-shrink: 0;
 }
 
-.source {
+.logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: #2a2a4a;
+  flex-shrink: 0;
+}
+
+.sources {
   display: flex;
-  align-items: center;
   gap: 8px;
+}
+
+.source {
   background: #1a1a2e;
   border: 1px solid #2a2a4a;
   border-radius: 8px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   transition: border-color 0.2s;
 }
 
@@ -63,7 +80,7 @@
 }
 
 .sourceDesc {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: #666;
   white-space: nowrap;
 }
@@ -72,21 +89,25 @@
   .hero {
     flex-direction: column;
     align-items: flex-start;
-    padding: 14px 20px;
-    gap: 12px;
+    padding: 12px 20px;
+    gap: 10px;
   }
 
-  .sources {
+  .right {
     flex-wrap: wrap;
   }
 }
 
 @media (max-width: 600px) {
-  .source {
-    padding: 6px 10px;
-  }
-
   .sourceDesc {
     display: none;
+  }
+
+  .source {
+    padding: 5px 10px;
+  }
+
+  .logo {
+    height: 28px;
   }
 }
