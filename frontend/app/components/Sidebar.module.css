@@ -1,0 +1,144 @@
+.sidebar {
+  width: 280px;
+  background: #16162a;
+  border-left: 1px solid #2a2a4a;
+  padding: 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: #e0e0e0;
+}
+
+.placeholder {
+  color: #555;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.hint {
+  color: #444;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.value {
+  font-size: 0.82rem;
+  color: #e0e0e0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.75rem;
+}
+
+.divider {
+  height: 1px;
+  background: #2a2a4a;
+  margin: 6px 0;
+}
+
+/* Top incidents list */
+.topList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.topItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border-radius: 6px;
+  border: 1px solid #2a2a4a;
+  overflow: hidden;
+}
+
+.topBar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff6b35, #f44336);
+  border-radius: 0 0 6px 6px;
+  transition: width 0.4s ease;
+}
+
+.topRank {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ff6b35;
+  min-width: 20px;
+}
+
+.topInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.topId {
+  font-size: 0.75rem;
+  color: #ccc;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.topMeta {
+  font-size: 0.68rem;
+  color: #666;
+}
+
+/* Responsive: hide sidebar on narrow screens */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}

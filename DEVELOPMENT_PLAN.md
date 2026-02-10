@@ -1,6 +1,6 @@
 # Wildfire Live Map — Development Plan
 
-Domain: **www.eliiskeans.com**
+Domain: **wildfire-stream.eliiskeans.com**
 Cloud: **AWS (serverless, low-cost)**
 Status tracking: Update this doc as phases complete.
 
@@ -25,7 +25,7 @@ Status tracking: Update this doc as phases complete.
 - [ ] **Keep Cloudflare as DNS** (registrar: Namecheap, DNS: Cloudflare — no migration needed)
 - [ ] Request ACM certificate for `eliiskeans.com` + `*.eliiskeans.com` in **us-east-1**
 - [ ] Add ACM DNS validation CNAME record in Cloudflare
-- [ ] After CloudFront is created: add CNAME `www.eliiskeans.com` → CloudFront distribution domain in Cloudflare
+- [ ] After CloudFront is created: add CNAME `wildfire-stream.eliiskeans.com` → CloudFront distribution domain in Cloudflare
 - [ ] **Important:** Set that CNAME to **DNS-only mode (gray cloud)** in Cloudflare — Cloudflare's proxy (orange cloud) conflicts with CloudFront and will cause SSL/routing issues
 
 ### 0.4 Infrastructure-as-Code Setup
@@ -37,7 +37,7 @@ Status tracking: Update this doc as phases complete.
   - `wildfire-app-web` (frontend hosting, static website enabled)
   - `wildfire-data` (snapshots/replay)
 - [ ] Create CloudFront distribution pointing to `wildfire-app-web` bucket
-- [ ] Wire up domain alias (`www.eliiskeans.com`) + ACM cert on CloudFront
+- [ ] Wire up domain alias (`wildfire-stream.eliiskeans.com`) + ACM cert on CloudFront
 - [ ] Origin Access Control (OAC) so S3 bucket is private, only accessible via CloudFront
 
 ### 0.5 Repo Structure
@@ -74,7 +74,7 @@ Status tracking: Update this doc as phases complete.
 ### 1.2 Deploy Pipeline
 - [ ] SAM/script to build frontend (`next build`) and sync to S3
 - [ ] CloudFront invalidation after deploy
-- [ ] Verify: `www.eliiskeans.com` shows the live map
+- [ ] Verify: `wildfire-stream.eliiskeans.com` shows the live map
 
 ### 1.3 Basic Layout
 - [ ] Mode toggle: Live / Replay (UI only, no logic yet)

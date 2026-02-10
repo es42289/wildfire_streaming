@@ -15,7 +15,21 @@
       "Bash(pip:*)",
       "Bash(where:*)",
       "Bash(conda:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git pull:*)",
+      "Bash(C:UsersEliiSDocumentsPDstreaming.venvScriptspython.exe --version)",
+      "Bash(sam.cmd --version:*)",
+      "Bash(sam.cmd build:*)",
+      "Bash(sam.cmd deploy:*)",
+      "Bash(curl:*)",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm build:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws logs describe-log-groups:*)",
+      "Bash(python -c:*)",
+      "Bash(npx next build:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws cloudfront:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws lambda invoke:*)"
     ]
   }
 }

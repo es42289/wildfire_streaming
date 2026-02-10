@@ -1,0 +1,449 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Wildfire Live Map — serverless infrastructure
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        HOTSPOTS_TABLE: !Ref HotspotsTable
+        CURSORS_TABLE: !Ref CursorsTable
+        INCIDENTS_TABLE: !Ref IncidentsTable
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: wildfire-stream.eliiskeans.com
+  CertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:983102014556:certificate/df2d1cc3-5c16-465c-9650-ff1349780385
+
+Resources:
+  # ---- S3 Buckets ----
+
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ---- CloudFront OAC ----
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-web-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ---- S3 Bucket Policy (allow CloudFront only) ----
+
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${WebBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # ---- CloudFront Distribution ----
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Aliases:
+          - !Ref DomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt WebBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          Compress: true
+        # SPA fallback: serve index.html for 403/404 from S3
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+
+  # ---- DynamoDB Tables ----
+
+  HotspotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-hotspots-recent"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: hotspot_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: hotspot_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  CursorsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-cursors"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: source_name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: source_name
+          KeyType: HASH
+
+  IncidentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-incidents"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: incident_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: incident_id
+          KeyType: HASH
+
+  WsConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-ws-connections"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connection_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connection_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  # ---- Lambda Functions ----
+
+  IngestHotspotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/ingest_hotspots/
+      Timeout: 60
+      Environment:
+        Variables:
+          FIRMS_API_KEY_PARAM: /wildfire/firms-api-key
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HotspotsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CursorsTable
+        - SSMParameterReadPolicy:
+            ParameterName: wildfire/firms-api-key
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+
+  ProcessIncidentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/process_incidents/
+      Timeout: 60
+      Environment:
+        Variables:
+          WS_CONNECTIONS_TABLE: !Ref WsConnectionsTable
+          WS_API_ENDPOINT: !Sub "https://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HotspotsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IncidentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WsConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*"
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+
+  LatestStateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/latest_state/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HotspotsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref IncidentsTable
+      Events:
+        GetLatestState:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /state/latest
+            Method: GET
+
+  WriteSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/write_snapshot/
+      Timeout: 60
+      Environment:
+        Variables:
+          DATA_BUCKET: !Ref DataBucket
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HotspotsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref IncidentsTable
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+      Events:
+        HourlySnapshot:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Enabled: true
+
+  ReplayApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/replay_api/
+      Timeout: 30
+      Environment:
+        Variables:
+          DATA_BUCKET: !Ref DataBucket
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DataBucket
+      Events:
+        ListSnapshots:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /replay/list
+            Method: GET
+        GetSnapshot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /replay/snapshot/{date}/{hour}
+            Method: GET
+
+  # ---- WebSocket API ----
+
+  WsApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-ws"
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  WsStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WsApi
+      StageName: prod
+      AutoDeploy: true
+
+  WsConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/ws_connect/
+      Environment:
+        Variables:
+          WS_CONNECTIONS_TABLE: !Ref WsConnectionsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WsConnectionsTable
+
+  WsConnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*/$connect"
+
+  WsConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsConnectFunction.Arn}/invocations"
+
+  WsConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: "$connect"
+      Target: !Sub "integrations/${WsConnectIntegration}"
+
+  WsDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/ws_disconnect/
+      Environment:
+        Variables:
+          WS_CONNECTIONS_TABLE: !Ref WsConnectionsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WsConnectionsTable
+
+  WsDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsDisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*/$disconnect"
+
+  WsDisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsDisconnectFunction.Arn}/invocations"
+
+  WsDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: "$disconnect"
+      Target: !Sub "integrations/${WsDisconnectIntegration}"
+
+  WsDefaultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/ws_default/
+      Environment:
+        Variables:
+          WS_CONNECTIONS_TABLE: !Ref WsConnectionsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WsConnectionsTable
+
+  WsDefaultPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsDefaultFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*/$default"
+
+  WsDefaultIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WsApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsDefaultFunction.Arn}/invocations"
+
+  WsDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WsApi
+      RouteKey: "$default"
+      Target: !Sub "integrations/${WsDefaultIntegration}"
+
+  # ---- HTTP API ----
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - "https://wildfire-stream.eliiskeans.com"
+          - "http://localhost:3000"
+        AllowMethods:
+          - GET
+        AllowHeaders:
+          - Content-Type
+
+Outputs:
+  WebBucketName:
+    Description: S3 bucket for frontend static files
+    Value: !Ref WebBucket
+  DataBucketName:
+    Description: S3 bucket for snapshots and replay data
+    Value: !Ref DataBucket
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID (for cache invalidation)
+    Value: !Ref CloudFrontDistribution
+  CloudFrontDomainName:
+    Description: CloudFront domain (use as CNAME target in Cloudflare)
+    Value: !GetAtt CloudFrontDistribution.DomainName
+  SiteUrl:
+    Description: Public URL
+    Value: !Sub "https://${DomainName}"
+  ApiUrl:
+    Description: HTTP API endpoint
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  WsApiUrl:
+    Description: WebSocket API endpoint
+    Value: !Sub "wss://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
