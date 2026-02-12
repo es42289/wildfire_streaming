@@ -1,0 +1,255 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #16162a;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  padding: 28px;
+  width: 420px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.title {
+  color: #e0e0e0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: #aaa;
+  background: #1a1a2e;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  color: #aaa;
+  font-size: 0.78rem;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.88rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: #ff6b35;
+}
+
+.input::placeholder {
+  color: #555;
+}
+
+.addressRow {
+  display: flex;
+  gap: 8px;
+}
+
+.addressRow .input {
+  flex: 1;
+}
+
+.searchBtn {
+  padding: 8px 14px;
+  background: #2a2a4a;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.searchBtn:hover {
+  background: #3a3a5a;
+}
+
+.searchBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.coordRow {
+  display: flex;
+  gap: 10px;
+}
+
+.coordRow .field {
+  flex: 1;
+}
+
+.pickBtn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed #3a3a5a;
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 0.82rem;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.pickBtn:hover {
+  border-color: #ff6b35;
+  color: #ff6b35;
+}
+
+.radiusGroup {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.radiusBtn {
+  flex: 1;
+  padding: 8px 0;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.radiusBtn:hover {
+  border-color: #ff6b35;
+  color: #e0e0e0;
+}
+
+.radiusBtn.active {
+  background: #ff6b35;
+  border-color: #ff6b35;
+  color: #fff;
+  font-weight: 600;
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 11px;
+  background: #ff6b35;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.submitBtn:hover {
+  background: #e55a28;
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #f44336;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+}
+
+.success {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.successIcon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.successTitle {
+  color: #e0e0e0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.successMsg {
+  color: #aaa;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pickBanner {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  background: #16162a;
+  border: 1px solid #ff6b35;
+  border-radius: 8px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.pickBannerText {
+  color: #e0e0e0;
+  font-size: 0.88rem;
+}
+
+.pickCancelBtn {
+  padding: 5px 14px;
+  background: #2a2a4a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.pickCancelBtn:hover {
+  background: #3a3a5a;
+}

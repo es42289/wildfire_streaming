@@ -29,7 +29,10 @@
       "Bash(python -c:*)",
       "Bash(npx next build:*)",
       "Bash(MSYS_NO_PATHCONV=1 aws cloudfront:*)",
-      "Bash(MSYS_NO_PATHCONV=1 aws lambda invoke:*)"
+      "Bash(MSYS_NO_PATHCONV=1 aws lambda invoke:*)",
+      "Bash(dir:*)",
+      "Bash(sam.cmd validate:*)",
+      "Bash(powershell.exe -Command \"cd C:\\\\Users\\\\EliiS\\\\Documents\\\\PD\\\\streaming\\\\infra; sam.cmd deploy --parameter-overrides ''DomainName=wildfire-alert.eliiskeans.com CertificateArn=arn:aws:acm:us-east-1:983102014556:certificate/3810c60c-bb8d-4bd5-ae15-18e6b644e0a8 AlertFromEmail=alerts@wildfire-alert.eliiskeans.com''\")"
     ]
   }
 }

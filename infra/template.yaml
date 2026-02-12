@@ -14,14 +14,19 @@ Globals:
         HOTSPOTS_TABLE: !Ref HotspotsTable
         CURSORS_TABLE: !Ref CursorsTable
         INCIDENTS_TABLE: !Ref IncidentsTable
+        WATCH_LOCATIONS_TABLE: !Ref WatchLocationsTable
+        ALERT_HISTORY_TABLE: !Ref AlertHistoryTable
 
 Parameters:
   DomainName:
     Type: String
-    Default: wildfire-stream.eliiskeans.com
+    Default: wildfire-alert.eliiskeans.com
   CertificateArn:
     Type: String
-    Default: arn:aws:acm:us-east-1:983102014556:certificate/df2d1cc3-5c16-465c-9650-ff1349780385
+    Default: arn:aws:acm:us-east-1:983102014556:certificate/3810c60c-bb8d-4bd5-ae15-18e6b644e0a8
+  AlertFromEmail:
+    Type: String
+    Default: alerts@wildfire-alert.eliiskeans.com
 
 Resources:
   # ---- S3 Buckets ----
@@ -195,6 +200,60 @@ Resources:
         - Key: Project
           Value: wildfire
 
+  WatchLocationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-watch-locations"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: location_id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: verification_token
+          AttributeType: S
+      KeySchema:
+        - AttributeName: location_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: token-index
+          KeySchema:
+            - AttributeName: verification_token
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
+      Tags:
+        - Key: Project
+          Value: wildfire
+
+  AlertHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-alert-history"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: location_id
+          AttributeType: S
+        - AttributeName: hotspot_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: location_id
+          KeyType: HASH
+        - AttributeName: hotspot_id
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: wildfire
+
   # ---- Lambda Functions ----
 
   IngestHotspotsFunction:
@@ -314,6 +373,104 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /replay/snapshot/{date}/{hour}
             Method: GET
+
+  CreateWatchLocationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/create_watch_location/
+      Environment:
+        Variables:
+          ALERT_FROM_EMAIL: !Ref AlertFromEmail
+          SITE_URL: !Sub "https://${DomainName}"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WatchLocationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: "*"
+      Events:
+        CreateWatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /alerts/watch
+            Method: POST
+
+  VerifyEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/verify_email/
+      Environment:
+        Variables:
+          SITE_URL: !Sub "https://${DomainName}"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WatchLocationsTable
+      Events:
+        VerifyEmail:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /alerts/verify
+            Method: GET
+
+  CheckAlertsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/check_alerts/
+      Timeout: 120
+      MemorySize: 512
+      Environment:
+        Variables:
+          ALERT_FROM_EMAIL: !Ref AlertFromEmail
+          SITE_URL: !Sub "https://${DomainName}"
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HotspotsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref WatchLocationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlertHistoryTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: "*"
+      Events:
+        CheckSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+
+  ManageWatchLocationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/manage_watch_location/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WatchLocationsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref AlertHistoryTable
+      Events:
+        GetWatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /alerts/watch/{location_id}
+            Method: GET
+        DeleteWatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /alerts/watch/{location_id}
+            Method: DELETE
 
   # ---- WebSocket API ----
 
@@ -441,10 +598,13 @@ Resources:
       StageName: $default
       CorsConfiguration:
         AllowOrigins:
-          - "https://wildfire-stream.eliiskeans.com"
+          - "https://wildfire-alert.eliiskeans.com"
           - "http://localhost:3000"
         AllowMethods:
           - GET
+          - POST
+          - DELETE
+          - OPTIONS
         AllowHeaders:
           - Content-Type
 
@@ -470,3 +630,9 @@ Outputs:
   WsApiUrl:
     Description: WebSocket API endpoint
     Value: !Sub "wss://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  WatchLocationsTableName:
+    Description: DynamoDB table for watch locations
+    Value: !Ref WatchLocationsTable
+  AlertHistoryTableName:
+    Description: DynamoDB table for alert dedup history
+    Value: !Ref AlertHistoryTable

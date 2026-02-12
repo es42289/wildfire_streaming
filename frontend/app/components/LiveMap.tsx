@@ -32,6 +32,12 @@ export interface TopIncident {
   centroid_lon: number;
 }
 
+export interface WatchMarker {
+  lat: number;
+  lon: number;
+  radiusMiles: number;
+}
+
 interface LiveMapProps {
   mode: "live" | "replay";
   visibleLayers: { hotspots: boolean; incidents: boolean };
@@ -42,6 +48,21 @@ interface LiveMapProps {
   onWsStatus?: (status: WsStatus) => void;
   onTopIncidents?: (incidents: TopIncident[]) => void;
   onLoading?: (loading: boolean) => void;
+  mapPickMode?: boolean;
+  onMapPick?: (coords: { lat: number; lon: number }) => void;
+  watchMarker?: WatchMarker | null;
+}
+
+function createCircleGeoJSON(lat: number, lon: number, radiusMiles: number, segments = 64): GeoJSON.Feature {
+  const radiusKm = radiusMiles * 1.60934;
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * 2 * Math.PI;
+    const dLat = (radiusKm / 111.32) * Math.cos(angle);
+    const dLon = (radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
+    coords.push([lon + dLon, lat + dLat]);
+  }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
 }
 
 export default function LiveMap({
@@ -54,6 +75,9 @@ export default function LiveMap({
   onWsStatus,
   onTopIncidents,
   onLoading,
+  mapPickMode,
+  onMapPick,
+  watchMarker,
 }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -359,6 +383,31 @@ export default function LiveMap({
         }
       });
 
+      // ---- Watch location layers ----
+      map.addSource("watch-location", { type: "geojson", data: EMPTY_FC });
+
+      map.addLayer({
+        id: "watch-location-fill",
+        type: "fill",
+        source: "watch-location",
+        paint: {
+          "fill-color": "#4fc3f7",
+          "fill-opacity": 0.12,
+        },
+      });
+
+      map.addLayer({
+        id: "watch-location-line",
+        type: "line",
+        source: "watch-location",
+        paint: {
+          "line-color": "#4fc3f7",
+          "line-width": 2,
+          "line-dasharray": [3, 2],
+          "line-opacity": 0.7,
+        },
+      });
+
       setReady(true);
     });
 
@@ -386,6 +435,41 @@ export default function LiveMap({
     map.setLayoutProperty("incidents-layer", "visibility", iVis);
     map.setLayoutProperty("incidents-outline-layer", "visibility", iVis);
   }, [visibleLayers, ready]);
+
+  // Map pick mode
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    if (mapPickMode) {
+      map.getCanvas().style.cursor = "crosshair";
+      const handleClick = (e: maplibregl.MapMouseEvent) => {
+        onMapPick?.({ lat: e.lngLat.lat, lon: e.lngLat.lng });
+      };
+      map.on("click", handleClick);
+      return () => {
+        map.off("click", handleClick);
+        map.getCanvas().style.cursor = "";
+      };
+    } else {
+      map.getCanvas().style.cursor = "";
+    }
+  }, [mapPickMode, ready, onMapPick]);
+
+  // Watch marker circle
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const src = map.getSource("watch-location") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+
+    if (watchMarker) {
+      const circle = createCircleGeoJSON(watchMarker.lat, watchMarker.lon, watchMarker.radiusMiles);
+      src.setData({ type: "FeatureCollection", features: [circle] });
+    } else {
+      src.setData(EMPTY_FC);
+    }
+  }, [watchMarker, ready]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

@@ -126,7 +126,26 @@
 
 .right {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
+}
+
+.watchBtn {
+  padding: 5px 14px;
+  background: transparent;
+  border: 1px solid #ff6b35;
+  border-radius: 5px;
+  color: #ff6b35;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.watchBtn:hover {
+  background: #ff6b35;
+  color: #fff;
 }
 
 .stat {
