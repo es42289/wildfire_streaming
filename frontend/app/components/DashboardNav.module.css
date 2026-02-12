@@ -1,0 +1,154 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #16162a;
+  border-bottom: 1px solid #2a2a4a;
+  padding: 0 16px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ff6b35;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.logo:hover {
+  opacity: 0.85;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ff6b35;
+  background: rgba(255, 107, 53, 0.12);
+  border: 1px solid rgba(255, 107, 53, 0.25);
+  border-radius: 4px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: #2a2a4a;
+}
+
+.wsStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wsDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.ws_connected {
+  background: #4caf50;
+  box-shadow: 0 0 4px #4caf50;
+}
+
+.ws_connecting {
+  background: #ff9800;
+  animation: pulse 1s infinite;
+}
+
+.ws_disconnected {
+  background: #f44336;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.wsLabel {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: 0.65rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #2a2a4a;
+}
+
+.userName {
+  font-size: 0.8rem;
+  color: #ccc;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutBtn {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid #2a2a4a;
+  border-radius: 5px;
+  color: #aaa;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.logoutBtn:hover {
+  border-color: #666;
+  color: #e0e0e0;
+}
+
+@media (max-width: 768px) {
+  .userName, .stat {
+    display: none;
+  }
+}

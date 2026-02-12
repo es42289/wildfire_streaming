@@ -7,17 +7,20 @@ from datetime import datetime, timezone
 import boto3
 
 ddb = boto3.resource("dynamodb")
-ses = boto3.client("ses")
 table = ddb.Table(os.environ["WATCH_LOCATIONS_TABLE"])
 
-ALERT_FROM_EMAIL = os.environ["ALERT_FROM_EMAIL"]
-SITE_URL = os.environ["SITE_URL"]
-
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-MAX_LOCATIONS_PER_EMAIL = 5
+MAX_LOCATIONS_PER_USER = 10
 
 
 def lambda_handler(event, context):
+    # Extract user identity from Auth0 JWT (set by API Gateway JWT authorizer)
+    claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+    user_id = claims.get("sub", "")
+    email = claims.get("email", "")
+
+    if not user_id:
+        return _resp(401, {"error": "Unauthorized"})
+
     try:
         body = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
@@ -27,7 +30,6 @@ def lambda_handler(event, context):
     lat = body.get("lat")
     lon = body.get("lon")
     radius_miles = body.get("radius_miles")
-    email = (body.get("email") or "").strip().lower()
 
     # Validate
     errors = []
@@ -39,8 +41,6 @@ def lambda_handler(event, context):
         errors.append("lon must be between -180 and 180")
     if radius_miles is None or not (0 < float(radius_miles) <= 100):
         errors.append("radius_miles must be between 0 and 100")
-    if not email or not EMAIL_RE.match(email):
-        errors.append("valid email is required")
 
     if errors:
         return _resp(400, {"errors": errors})
@@ -49,74 +49,36 @@ def lambda_handler(event, context):
     lon = float(lon)
     radius_miles = float(radius_miles)
 
-    # Rate limit: max locations per email
+    # Rate limit: max locations per user
     existing = table.query(
-        IndexName="email-index",
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("email").eq(email),
+        IndexName="user-id-index",
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("user_id").eq(user_id),
         Select="COUNT",
         FilterExpression=boto3.dynamodb.conditions.Attr("status").ne("deleted"),
     )
-    if existing["Count"] >= MAX_LOCATIONS_PER_EMAIL:
-        return _resp(429, {"error": f"Maximum {MAX_LOCATIONS_PER_EMAIL} watch locations per email"})
+    if existing["Count"] >= MAX_LOCATIONS_PER_USER:
+        return _resp(429, {"error": f"Maximum {MAX_LOCATIONS_PER_USER} watch locations per account"})
 
     location_id = str(uuid.uuid4())
-    verification_token = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
     table.put_item(Item={
         "location_id": location_id,
+        "user_id": user_id,
         "name": name,
         "lat": str(lat),
         "lon": str(lon),
         "radius_miles": str(radius_miles),
         "email": email,
-        "status": "unverified",
-        "verified": False,
-        "verification_token": verification_token,
-        "subscription_id": None,
-        "subscription_status": "free",
+        "status": "active",
+        "verified": True,
         "created_at": now,
     })
 
-    # Build API URL from the incoming request context
-    domain = event.get("requestContext", {}).get("domainName", "")
-    api_url = f"https://{domain}" if domain else SITE_URL
-
-    # Send verification email
-    verify_url = f"{api_url}/alerts/verify?token={verification_token}"
-    ses.send_email(
-        Source=ALERT_FROM_EMAIL,
-        Destination={"ToAddresses": [email]},
-        Message={
-            "Subject": {"Data": f"Verify your watch location: {name}"},
-            "Body": {
-                "Html": {
-                    "Data": _verification_email_html(name, lat, lon, radius_miles, verify_url)
-                }
-            },
-        },
-    )
-
-    return _resp(201, {"location_id": location_id, "message": "Check your email to verify this watch location"})
-
-
-def _verification_email_html(name, lat, lon, radius_miles, verify_url):
-    return f"""<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#0d0d1a;font-family:Arial,sans-serif;">
-<div style="max-width:500px;margin:40px auto;background:#16162a;border:1px solid #2a2a4a;border-radius:12px;padding:32px;">
-  <h1 style="color:#ff6b35;font-size:20px;margin:0 0 8px;">Wildfire Live Map</h1>
-  <h2 style="color:#e0e0e0;font-size:16px;margin:0 0 24px;">Verify Watch Location</h2>
-  <div style="background:#1a1a2e;border-radius:8px;padding:16px;margin-bottom:24px;">
-    <p style="color:#aaa;margin:0 0 4px;font-size:13px;">Location: <strong style="color:#e0e0e0;">{name}</strong></p>
-    <p style="color:#aaa;margin:0 0 4px;font-size:13px;">Coordinates: {lat:.4f}, {lon:.4f}</p>
-    <p style="color:#aaa;margin:0;font-size:13px;">Radius: {radius_miles:.0f} miles</p>
-  </div>
-  <a href="{verify_url}" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:12px 32px;border-radius:6px;font-weight:bold;font-size:14px;">Verify &amp; Activate</a>
-  <p style="color:#666;font-size:11px;margin-top:24px;">If you didn't request this, ignore this email.</p>
-</div>
-</body>
-</html>"""
+    return _resp(201, {
+        "location_id": location_id,
+        "message": "Watch location created and active",
+    })
 
 
 def _resp(status, body):

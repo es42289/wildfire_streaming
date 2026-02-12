@@ -38,6 +38,14 @@ export interface WatchMarker {
   radiusMiles: number;
 }
 
+export interface WatchLocationMarker {
+  location_id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  radius_miles: number;
+}
+
 interface LiveMapProps {
   mode: "live" | "replay";
   visibleLayers: { hotspots: boolean; incidents: boolean };
@@ -48,9 +56,13 @@ interface LiveMapProps {
   onWsStatus?: (status: WsStatus) => void;
   onTopIncidents?: (incidents: TopIncident[]) => void;
   onLoading?: (loading: boolean) => void;
+  onHotspotsData?: (features: GeoJSON.Feature[]) => void;
   mapPickMode?: boolean;
   onMapPick?: (coords: { lat: number; lon: number }) => void;
   watchMarker?: WatchMarker | null;
+  watchLocations?: WatchLocationMarker[];
+  onWatchLocationClick?: (locationId: string) => void;
+  flyTo?: { lat: number; lon: number; zoom: number } | null;
 }
 
 function createCircleGeoJSON(lat: number, lon: number, radiusMiles: number, segments = 64): GeoJSON.Feature {
@@ -75,14 +87,19 @@ export default function LiveMap({
   onWsStatus,
   onTopIncidents,
   onLoading,
+  onHotspotsData,
   mapPickMode,
   onMapPick,
   watchMarker,
+  watchLocations,
+  onWatchLocationClick,
+  flyTo,
 }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const incidentsDataRef = useRef<GeoJSON.FeatureCollection>(EMPTY_FC);
+  const hotspotsDataRef = useRef<GeoJSON.Feature[]>([]);
   const [ready, setReady] = useState(false);
 
   // Extract top incidents from feature collection
@@ -186,6 +203,8 @@ export default function LiveMap({
       if (hotspotsSrc && data.hotspots) {
         hotspotsSrc.setData(data.hotspots);
         onHotspotCount?.(data.hotspots.features?.length ?? 0);
+        hotspotsDataRef.current = data.hotspots.features ?? [];
+        onHotspotsData?.(data.hotspots.features ?? []);
       }
 
       const incidentsSrc = map.getSource("incidents") as maplibregl.GeoJSONSource | undefined;
@@ -200,7 +219,7 @@ export default function LiveMap({
     } finally {
       onLoading?.(false);
     }
-  }, [onHotspotCount, onIncidentCount, onLoading, updateTopIncidents]);
+  }, [onHotspotCount, onIncidentCount, onLoading, onHotspotsData, updateTopIncidents]);
 
   // Apply replay data
   useEffect(() => {
@@ -408,6 +427,76 @@ export default function LiveMap({
         },
       });
 
+      // ---- Saved watch locations (dashboard markers) ----
+      map.addSource("saved-watch-circles", { type: "geojson", data: EMPTY_FC });
+      map.addSource("saved-watch-points", { type: "geojson", data: EMPTY_FC });
+
+      map.addLayer({
+        id: "saved-watch-circles-fill",
+        type: "fill",
+        source: "saved-watch-circles",
+        paint: {
+          "fill-color": "#4fc3f7",
+          "fill-opacity": 0.08,
+        },
+      });
+
+      map.addLayer({
+        id: "saved-watch-circles-line",
+        type: "line",
+        source: "saved-watch-circles",
+        paint: {
+          "line-color": "#4fc3f7",
+          "line-width": 1.5,
+          "line-dasharray": [4, 3],
+          "line-opacity": 0.5,
+        },
+      });
+
+      map.addLayer({
+        id: "saved-watch-points-layer",
+        type: "circle",
+        source: "saved-watch-points",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "#4fc3f7",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+          "circle-opacity": 0.9,
+        },
+      });
+
+      map.addLayer({
+        id: "saved-watch-labels",
+        type: "symbol",
+        source: "saved-watch-points",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": 12,
+          "text-offset": [0, 1.8],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+        },
+        paint: {
+          "text-color": "#e0e0e0",
+          "text-halo-color": "#16162a",
+          "text-halo-width": 1.5,
+        },
+      });
+
+      map.on("click", "saved-watch-points-layer", (e) => {
+        if (e.features?.length) {
+          const locId = e.features[0].properties?.location_id;
+          if (locId) onWatchLocationClick?.(locId);
+        }
+      });
+      map.on("mouseenter", "saved-watch-points-layer", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "saved-watch-points-layer", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
       setReady(true);
     });
 
@@ -470,6 +559,39 @@ export default function LiveMap({
       src.setData(EMPTY_FC);
     }
   }, [watchMarker, ready]);
+
+  // Fly to location
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !flyTo) return;
+    map.flyTo({ center: [flyTo.lon, flyTo.lat], zoom: flyTo.zoom, duration: 1500 });
+  }, [flyTo, ready]);
+
+  // Saved watch locations (dashboard)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const circlesSrc = map.getSource("saved-watch-circles") as maplibregl.GeoJSONSource | undefined;
+    const pointsSrc = map.getSource("saved-watch-points") as maplibregl.GeoJSONSource | undefined;
+    if (!circlesSrc || !pointsSrc) return;
+
+    if (watchLocations && watchLocations.length > 0) {
+      const circles: GeoJSON.Feature[] = watchLocations.map((loc) =>
+        createCircleGeoJSON(loc.lat, loc.lon, loc.radius_miles)
+      );
+      circlesSrc.setData({ type: "FeatureCollection", features: circles });
+
+      const points: GeoJSON.Feature[] = watchLocations.map((loc) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [loc.lon, loc.lat] },
+        properties: { location_id: loc.location_id, name: loc.name },
+      }));
+      pointsSrc.setData({ type: "FeatureCollection", features: points });
+    } else {
+      circlesSrc.setData(EMPTY_FC);
+      pointsSrc.setData(EMPTY_FC);
+    }
+  }, [watchLocations, ready]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

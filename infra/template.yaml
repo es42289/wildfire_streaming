@@ -27,6 +27,14 @@ Parameters:
   AlertFromEmail:
     Type: String
     Default: alerts@wildfire-alert.eliiskeans.com
+  Auth0Domain:
+    Type: String
+    Default: CONFIGURE_ME.us.auth0.com
+    Description: Auth0 tenant domain (e.g., myapp.us.auth0.com)
+  Auth0Audience:
+    Type: String
+    Default: https://api.wildfire-alert.eliiskeans.com
+    Description: Auth0 API audience identifier
 
 Resources:
   # ---- S3 Buckets ----
@@ -212,6 +220,8 @@ Resources:
           AttributeType: S
         - AttributeName: verification_token
           AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
       KeySchema:
         - AttributeName: location_id
           KeyType: HASH
@@ -228,6 +238,12 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: KEYS_ONLY
+        - IndexName: user-id-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       Tags:
         - Key: Project
           Value: wildfire
@@ -398,6 +414,26 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /alerts/watch
             Method: POST
+            Auth:
+              Authorizer: Auth0Authorizer
+
+  ListWatchLocationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: ../backend/lambdas/list_watch_locations/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref WatchLocationsTable
+      Events:
+        ListMyWatches:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /alerts/my-watches
+            Method: GET
+            Auth:
+              Authorizer: Auth0Authorizer
 
   VerifyEmailFunction:
     Type: AWS::Serverless::Function
@@ -465,12 +501,16 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /alerts/watch/{location_id}
             Method: GET
+            Auth:
+              Authorizer: Auth0Authorizer
         DeleteWatch:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
             Path: /alerts/watch/{location_id}
             Method: DELETE
+            Auth:
+              Authorizer: Auth0Authorizer
 
   # ---- WebSocket API ----
 
@@ -596,6 +636,15 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
+      Auth:
+        Authorizers:
+          Auth0Authorizer:
+            AuthorizationScopes: []
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              audience:
+                - !Ref Auth0Audience
+              issuer: !Sub "https://${Auth0Domain}/"
       CorsConfiguration:
         AllowOrigins:
           - "https://wildfire-alert.eliiskeans.com"
@@ -607,6 +656,7 @@ Resources:
           - OPTIONS
         AllowHeaders:
           - Content-Type
+          - Authorization
 
 Outputs:
   WebBucketName:

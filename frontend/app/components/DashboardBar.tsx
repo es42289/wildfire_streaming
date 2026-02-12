@@ -12,7 +12,6 @@ interface DashboardBarProps {
   incidentCount: number;
   wsStatus: WsStatus;
   replayTimestamp?: string;
-  onWatchLocationClick?: () => void;
 }
 
 const STATUS_LABELS: Record<WsStatus, string> = {
@@ -30,7 +29,6 @@ export default function DashboardBar({
   incidentCount,
   wsStatus,
   replayTimestamp,
-  onWatchLocationClick,
 }: DashboardBarProps) {
   return (
     <div className={styles.bar}>
@@ -99,9 +97,9 @@ export default function DashboardBar({
       </div>
 
       <div className={styles.right}>
-        <button className={styles.watchBtn} onClick={onWatchLocationClick}>
-          Watch Location
-        </button>
+        <a href="/dashboard" className={styles.watchBtn}>
+          Dashboard
+        </a>
         <div className={styles.divider} />
         <div className={styles.stat}>
           <span className={styles.statValue}>{hotspotCount}</span>

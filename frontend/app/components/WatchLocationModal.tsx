@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import styles from "./WatchLocationModal.module.css";
 
-const API_URL = "https://0lzyt3z6r5.execute-api.us-east-1.amazonaws.com";
 const RADIUS_OPTIONS = [5, 10, 25, 50];
 
 interface WatchLocationModalProps {
@@ -11,6 +10,8 @@ interface WatchLocationModalProps {
   onClose: () => void;
   onPickOnMap: () => void;
   pickedCoords: { lat: number; lon: number } | null;
+  onCreated?: () => void;
+  createLocation?: (data: { name: string; lat: number; lon: number; radius_miles: number }) => Promise<unknown>;
 }
 
 export default function WatchLocationModal({
@@ -18,18 +19,18 @@ export default function WatchLocationModal({
   onClose,
   onPickOnMap,
   pickedCoords,
+  onCreated,
+  createLocation,
 }: WatchLocationModalProps) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
   const [radius, setRadius] = useState(10);
-  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "success">("idle");
   const [searching, setSearching] = useState(false);
 
-  // Apply picked coords from map
   useEffect(() => {
     if (pickedCoords) {
       setLat(pickedCoords.lat.toFixed(5));
@@ -69,30 +70,24 @@ export default function WatchLocationModal({
     const lonN = Number(lon);
     if (isNaN(latN) || latN < -90 || latN > 90) { setError("Invalid latitude"); return; }
     if (isNaN(lonN) || lonN < -180 || lonN > 180) { setError("Invalid longitude"); return; }
-    if (!email.trim() || !email.includes("@")) { setError("Valid email is required"); return; }
+
+    if (!createLocation) {
+      setError("Not authenticated");
+      return;
+    }
 
     setState("loading");
     try {
-      const res = await fetch(`${API_URL}/alerts/watch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          lat: latN,
-          lon: lonN,
-          radius_miles: radius,
-          email: email.trim().toLowerCase(),
-        }),
+      await createLocation({
+        name: name.trim(),
+        lat: latN,
+        lon: lonN,
+        radius_miles: radius,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || data.errors?.join(", ") || "Something went wrong");
-        setState("idle");
-        return;
-      }
       setState("success");
-    } catch {
-      setError("Network error — please try again");
+      onCreated?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
       setState("idle");
     }
   };
@@ -103,7 +98,6 @@ export default function WatchLocationModal({
     setLat("");
     setLon("");
     setRadius(10);
-    setEmail("");
     setError("");
     setState("idle");
     onClose();
@@ -121,11 +115,11 @@ export default function WatchLocationModal({
 
         {state === "success" ? (
           <div className={styles.success}>
-            <div className={styles.successIcon}>&#9993;</div>
-            <p className={styles.successTitle}>Check Your Email</p>
+            <div className={styles.successIcon}>&#10003;</div>
+            <p className={styles.successTitle}>Watch Location Created</p>
             <p className={styles.successMsg}>
-              We sent a verification link to <strong>{email}</strong>. Click it
-              to activate alerts for <strong>{name}</strong>.
+              <strong>{name}</strong> is now being monitored. You&apos;ll receive email
+              alerts when fire activity is detected within {radius} miles.
             </p>
           </div>
         ) : (
@@ -205,17 +199,6 @@ export default function WatchLocationModal({
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input
-                className={styles.input}
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
             </div>
 
             <button
